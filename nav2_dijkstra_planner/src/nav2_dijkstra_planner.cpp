@@ -321,12 +321,49 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
     // get neighbors of current_node
     std::unordered_map<int, double> neighbors =
         find_neighbors(current_node, costmap_flat);
+
+    for (const auto &pair : neighbors) {
+      int neighbor_index = pair->first;
+      double step_cost = pair->second;
+
+      // skip neighbor if it belongs to the closed list
+      if (closed_list.count(neighbor_index) > 0) {
+        continue;
+      }
+
+      std::unordered_map<int, double> current_neighbor_cost =
+          g_costs[neighbor_index] + step_cost;
+
+      //   check if neighbor is in open_list
+      bool in_open_list =
+          std::find_if(open_list.begin(), open_list.end(),
+                       [neighbor_index](const std::pair<int, double> &a) {
+                         return a.first == neighbor_index;
+                       }) != open_list.end();
+
+      if (in_open_list) {
+        //   case 1: new cost is smaller than the current g_cost
+        if (current_neighbor_cost < g_costs[neighbor_index]) {
+          g_costs[neighbor_index] = current_neighbor_cost;
+          parents[neighbor_index] = current_node;
+          for (auto &node : open_list) {
+            if (node.first == neighbor_index) {
+              node.second = g_cost;
+              break;
+            }
+          }
+        }
+      } else {
+        g_costs[neighbor_index] = current_neighbor_cost;
+        parents[neighbor_index] = current_node;
+        open_list.push_back(std::make_pair(neighbor_index, current_neighbor_cost);
+      }
+    }
   }
-}
 
-/** YOUR CODE ENDS HERE */
+  /** YOUR CODE ENDS HERE */
 
-return true;
+  return true;
 }
 
 void DijkstraGlobalPlanner::fromWorldToGrid(float &x, float &y) {
