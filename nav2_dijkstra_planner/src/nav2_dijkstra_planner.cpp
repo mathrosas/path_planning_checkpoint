@@ -308,7 +308,7 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
           return a.second < b.second;
         });
     // extract node with smallest g_cost
-    current_node = open_list.front().first();
+    current_node = open_list.front().first;
     open_list.erase(open_list.begin());
     // mark current_node as visited
     closed_list.insert(current_node);
@@ -323,16 +323,15 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
         find_neighbors(current_node, costmap_flat);
 
     for (const auto &pair : neighbors) {
-      int neighbor_index = pair->first;
-      double step_cost = pair->second;
+      int neighbor_index = pair.first;
+      double step_cost = pair.second;
 
       // skip neighbor if it belongs to the closed list
       if (closed_list.count(neighbor_index) > 0) {
         continue;
       }
 
-      std::unordered_map<int, double> current_neighbor_cost =
-          g_costs[neighbor_index] + step_cost;
+      double current_neighbor_cost = g_costs[current_node] + step_cost;
 
       //   check if neighbor is in open_list
       bool in_open_list =
@@ -342,28 +341,46 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
                        }) != open_list.end();
 
       if (in_open_list) {
-        //   case 1: new cost is smaller than the current g_cost
+        //   case 1: if new cost is smaller than the current g_cost
         if (current_neighbor_cost < g_costs[neighbor_index]) {
           g_costs[neighbor_index] = current_neighbor_cost;
           parents[neighbor_index] = current_node;
           for (auto &node : open_list) {
             if (node.first == neighbor_index) {
-              node.second = g_cost;
+              node.second = current_neighbor_cost;
               break;
             }
           }
         }
       } else {
+        //   case 2: if neighbor is not in open_list
         g_costs[neighbor_index] = current_neighbor_cost;
         parents[neighbor_index] = current_node;
-        open_list.push_back(std::make_pair(neighbor_index, current_neighbor_cost);
+        open_list.push_back(
+            std::make_pair(neighbor_index, current_neighbor_cost));
       }
     }
   }
 
+  if (!path_found) {
+    RCLCPP_WARN(node_->get_logger(), "Dijkstra: No path found");
+  } else {
+    current_node = goal_cell_index;
+    shortest_path.push_back(goal_cell_index);
+    while (true) {
+      shortest_path.push_back(current_node);
+      if (current_node == start_cell_index)
+        break;
+      current_node = parents[current_node];
+    }
+    std::reverse(shortest_path.begin(), shortest_path.end());
+  }
+  RCLCPP_INFO(node_->get_logger(), "Path found: %s",
+              path_found ? "true" : "false");
+
   /** YOUR CODE ENDS HERE */
 
-  return true;
+  return path_found; // modified for path_found
 }
 
 void DijkstraGlobalPlanner::fromWorldToGrid(float &x, float &y) {
